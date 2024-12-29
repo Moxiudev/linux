@@ -8,6 +8,9 @@
 /// If the compiler or optimizer cannot guarantee that `build_error!` can never
 /// be called, a build error will be triggered.
 ///
+/// This macro ensures that certain checks are enforced during the compilation process,
+/// and not at runtime, improving program safety by catching issues as early as possible.
+///
 /// # Examples
 ///
 /// ```
@@ -26,7 +29,8 @@ macro_rules! build_error {
         $crate::build_error("")
     }};
     ($msg:expr) => {{
-        $crate::build_error($msg)
+        // Ensure that the error message is more informative
+        $crate::build_error(concat!("[Build Error] ", $msg, " at line: ", stringify!($line)))
     }};
 }
 
@@ -36,13 +40,18 @@ macro_rules! build_error {
 /// will panic. If the compiler or optimizer cannot guarantee the condition will
 /// be evaluated to `true`, a build error will be triggered.
 ///
-/// [`static_assert!`] should be preferred to `build_assert!` whenever possible.
+/// This macro helps you assert conditions that are crucial to the correctness of your program
+/// before the code even runs, minimizing the potential for runtime errors.
+///
+/// [`static_assert!`] should be preferred to `build_assert!` whenever possible, as it provides 
+/// better performance and clarity in simpler cases.
 ///
 /// # Examples
 ///
-/// These examples show that different types of [`assert!`] will trigger errors
-/// at different stage of compilation. It is preferred to err as early as
+/// These examples show that different types of assertions will trigger errors
+/// at different stages of compilation. It is preferred to err as early as
 /// possible, so [`static_assert!`] should be used whenever possible.
+///
 /// ```ignore
 /// fn foo() {
 ///     static_assert!(1 > 1); // Compile-time error
@@ -53,6 +62,7 @@ macro_rules! build_error {
 ///
 /// When the condition refers to generic parameters or parameters of an inline function,
 /// [`static_assert!`] cannot be used. Use `build_assert!` in this scenario.
+///
 /// ```
 /// fn foo<const N: usize>() {
 ///     // `static_assert!(N > 1);` is not allowed
@@ -71,14 +81,24 @@ macro_rules! build_error {
 /// [`static_assert!`]: crate::static_assert!
 #[macro_export]
 macro_rules! build_assert {
+    // Simplified condition, only condition provided
     ($cond:expr $(,)?) => {{
         if !$cond {
-            $crate::build_error(concat!("assertion failed: ", stringify!($cond)));
+            $crate::build_error(concat!("assertion failed: ", stringify!($cond), " at line: ", stringify!($line)));
         }
     }};
+    
+    // Condition with a custom message
     ($cond:expr, $msg:expr) => {{
         if !$cond {
-            $crate::build_error($msg);
+            $crate::build_error(concat!($msg, " at line: ", stringify!($line)));
         }
     }};
-}
+    
+    // Condition with more context information (useful for debugging)
+    ($cond:expr, $msg:expr, $context:expr) => {{
+        if !$cond {
+            $crate::build_error(concat!($msg, " at line: ", stringify!($line), " - Context: ", $context));
+        }
+    }};
+    }
